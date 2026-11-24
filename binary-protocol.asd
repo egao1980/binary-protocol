@@ -1,5 +1,5 @@
 (defsystem "binary-protocol"
-  :version "0.1.0"
+  :version "0.1.1"
   :description "Python-struct pack/unpack (stack-binary)"
   :author "egao1980"
   :license "MIT"
