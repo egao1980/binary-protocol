@@ -42,6 +42,27 @@
   (ok (= -2.0s0 (first (unpack ">f" (pack ">f" -2.0)))))
   (ok (= 1.0d0 (first (unpack "<d" (pack "<d" 1.0d0))))))
 
+(deftest ieee-specials-unpack-as-in-python
+  ;; struct.unpack('!d', ...) / ('!f', ...) give inf, -inf and nan; with
+  ;; SBCL's default float traps they used to be ARITHMETIC-ERRORs.
+  (let ((inf (first (unpack "!d" #(127 240 0 0 0 0 0 0))))
+        (-inf (first (unpack "!f" #(255 128 0 0))))
+        (nan (first (unpack "!d" #(127 248 0 0 0 0 0 0))))
+        (snan (first (unpack "!d" #(127 240 0 0 0 0 0 1)))))
+    (ok (and (typep inf 'double-float) (> inf most-positive-double-float)) "+infinity")
+    (ok (and (typep -inf 'single-float) (< -inf most-negative-single-float)) "-infinity")
+    (ok (binary-protocol::%nan-p nan) "a quiet NaN")
+    (ok (binary-protocol::%nan-p snan) "a signalling NaN reads as a NaN too")))
+
+(deftest ieee-specials-pack-as-in-python
+  ;; struct.pack bytes for inf, -inf and nan.
+  (let ((inf (first (unpack "!d" #(127 240 0 0 0 0 0 0))))
+        (nan (first (unpack "!d" #(127 240 0 0 0 0 0 1)))))
+    (ok (octets= #(127 240 0 0 0 0 0 0) (pack "!d" inf)))
+    (ok (octets= #(255 128 0 0) (pack "!f" (- inf))) "-inf as a single")
+    (ok (octets= #(127 248 0 0 0 0 0 0) (pack "!d" nan)) "NaN is written as Python's quiet NaN")
+    (ok (octets= #(127 192 0 0) (pack "!f" nan)))))
+
 (deftest pack-into-offset
   (let ((buf (make-array 6 :element-type '(unsigned-byte 8) :initial-contents '(9 9 9 9 9 9))))
     (pack-into buf "<H" '(7) :start 2)
